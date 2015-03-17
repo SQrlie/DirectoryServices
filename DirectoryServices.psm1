@@ -93,17 +93,19 @@ function Get-DSDirectoryContext {
     .SYNOPSIS
         Gets a DirectoryContext
     .DESCRIPTION
-        Returns a DirectoryContext.
+        Returns a DirectoryContext. Note that this function does not check if the context is valid.
     .PARAMETER Type
-        DirectoryServices.ActiveDirectory.DirectoryContextType
+        The type of context. Possible values for this parameter are:
+        ApplicationPartition
+        ConfigurationSet
+        DirectoryServer
+        Domain
+        Forest
     .PARAMETER Name
-        Context Name
+        Name of the context
     .PARAMETER Credential
         The credentials to use for connecting to the specified context. If not specifed, current user's credential will be used. 
         Note that this function does not validate the credentials.
-    .NOTES
-        Version: 1.0
-        Author: Andreas Sørlie
     #>
     [CmdletBinding()]
     Param(
@@ -120,17 +122,9 @@ function Get-DSDirectoryContext {
         } else {
             $UserName = $Credential.UserName
         }
-        try {
-            return New-Object DirectoryServices.ActiveDirectory.DirectoryContext($Type, $Name, $UserName, $Credential.GetNetworkCredential().Password)
-        } catch {
-            Throw Initialize-ErrorRecord $_ 'DirectoryServices.ActiveDirectory.DirectoryContext' $MyInvocation.MyCommand
-        }
+        return New-Object DirectoryServices.ActiveDirectory.DirectoryContext($Type, $Name, $UserName, $Credential.GetNetworkCredential().Password)
     } else {
-        try {
-            return New-Object DirectoryServices.ActiveDirectory.DirectoryContext($Type, $Name)
-        } catch {
-            Throw Initialize-ErrorRecord $_ 'DirectoryServices.ActiveDirectory.DirectoryContext' $MyInvocation.MyCommand
-        }
+        return New-Object DirectoryServices.ActiveDirectory.DirectoryContext($Type, $Name)
     }
 }
 
