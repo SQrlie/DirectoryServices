@@ -6,10 +6,10 @@ PowerShell Module for Active Directory Domain Services (AD DS) based on .NET Nam
 .NOTES
 Name:            DirectoryServices.psm1
 Title:           Active Directory Directory Services PowerShell Module
-Author:          Andreas Sørlie
-Date:            27.11.2014
-Version:         1.1.1
-Classification:  Unclassified
+Authors:         Andreas Sørlie
+                 Marius Koch
+Date:            09.06.2015
+Version:         1.1.3
 
 Changelog:
 27.11.2014: 1.0 Andreas Sørlie
@@ -29,6 +29,13 @@ Changelog:
 - Added Get-DSTrust
 17.05.2015: 1.1.2
 - Added New-DSObject. Requires additional work, but supports organizationalUnit and nTDSConnection. No extensive testing has been made.
+09.06.2015: 1.1.3
+- Added ParameterSet Server to Get-DSForest and Get-DSDomain
+- Added switch Forest in Get-DSDomainController in order to be able to get all domain controllers in the forest.
+- Added default path to New-DSObject.
+- Auto-completion of DC (Domain Component) in Get-DSObject.
+- Added examples to Get-DSTrust
+
 #>
 
 # Enumerations Start
@@ -171,7 +178,7 @@ function Get-DSDirectoryEntry {
         }
     }
     if ($DirectoryEntry.NativeObject -eq $Null) {
-        Throw Initialize-ErrorRecord 'Unable to retrieve DirectoryEntry' 'DirectoryServices.DirectoryEntry' $MyInvocation.MyCommand
+        Throw Initialize-ErrorRecord "Unable to retrieve DirectoryEntry: $Path" 'DirectoryServices.DirectoryEntry' $MyInvocation.MyCommand
     }
     return $DirectoryEntry
 }
@@ -191,6 +198,8 @@ function Get-DSForest {
     .PARAMETER Name
         Specifies an Active Directory forest object by providing the Fully qualified domain name (FQDN).
         This parameter can also get this object through the pipeline.
+    .PARAMETER Server
+        Gets the forest of the specifed Active Directory Domain Controller.
     .PARAMETER Credential
         Specifies the user account credentials to use to perform this task. The default credentials are the credentials of the currently logged on user.
     .NOTES
@@ -204,8 +213,11 @@ function Get-DSForest {
         [Parameter(ParameterSetName = 'Name', Mandatory = $False, ValueFromPipeline=$True, ValueFromPipelinebyPropertyName=$True, Position = 0)]
         [Alias('Forest','ForestName')]
         [String]$Name,
+        [Parameter(ParameterSetName = 'Server', Mandatory = $True, Position = 0)]
+        [String]$Server,
         [Parameter(ParameterSetName = 'Current', Mandatory = $False, Position = 1)]
         [Parameter(ParameterSetName = 'Name', Mandatory = $False, Position = 1)]
+        [Parameter(ParameterSetName = 'Server', Mandatory = $False, Position = 1)]
         [Management.Automation.PSCredential]$Credential
     )
     switch ($PsCmdlet.ParameterSetName) {
@@ -240,6 +252,13 @@ function Get-DSForest {
                     Throw Initialize-ErrorRecord $_ $Null $MyInvocation.MyCommand
                 }
             }
+        } 'Server' {
+            try {
+                $DomainController = Get-DSDomainController -Identity $Server -Credential $Credential
+            } catch {
+                Throw Initialize-ErrorRecord $_ $Null $MyInvocation.MyCommand
+            }
+            return $DomainController.Forest
         }
     }
     try {
@@ -269,6 +288,8 @@ function Get-DSDomain {
     .PARAMETER Name
         Specifies an Active Directory domain object by providing the Fully qualified domain name (FQDN).
         This parameter can also get this object through the pipeline.
+    .PARAMETER Server
+        Gets the domain of the specifed Active Directory Domain Controller.
     .PARAMETER Credential
         Specifies the user account credentials to use to perform this task. The default credentials are the credentials of the currently logged on user.
     .NOTES
@@ -282,8 +303,11 @@ function Get-DSDomain {
         [Parameter(ParameterSetName = 'Name', Mandatory = $False, ValueFromPipeline=$True, ValueFromPipelinebyPropertyName=$True, Position = 0)]
         [Alias('Domain','DomainName')]
         [String]$Name,
+        [Parameter(ParameterSetName = 'Server', Mandatory = $True, Position = 0)]
+        [String]$Server,
         [Parameter(ParameterSetName = 'Current', Mandatory = $False, Position = 1)]
         [Parameter(ParameterSetName = 'Name', Mandatory = $False, Position = 1)]
+        [Parameter(ParameterSetName = 'Server', Mandatory = $False, Position = 1)]
         [Management.Automation.PSCredential]$Credential
     )
     switch ($PsCmdlet.ParameterSetName) {
@@ -305,6 +329,13 @@ function Get-DSDomain {
                     Throw Initialize-ErrorRecord $_ $Null $MyInvocation.MyCommand
                 }
             }
+        } 'Server' {
+            try {
+                $DomainController = Get-DSDomainController -Identity $Server -Credential $Credential
+            } catch {
+                Throw Initialize-ErrorRecord $_ $Null $MyInvocation.MyCommand
+            }
+            return $DomainController.Domain
         }
     }
     try {
@@ -358,12 +389,18 @@ function Get-DSDomainController {
         Only returns writable domain controller(s).
     .PARAMETER FindAll
         Returns all domain controllers that meets the specified criterias.
+    .PARAMETER Forest
+        In conjuction with FindAll, returns all domain controllers in the specified forest.
     .PARAMETER PdcRole
         Returns the domain controller holding the Primary Domain Controller (PDC) Emulator role for the domain.
     .PARAMETER RidRole
         Returns the domain controller holding the Relative ID (RID) Master role for the domain.
     .PARAMETER InfrastructureRole
         Returns the domain controller holding the Infrastructure Master role for the domain.
+    .PARAMETER SchemaRoleOwner
+        Returns the domain controller holding the Schema Master role for the forest the domain belongs to.
+    .PARAMETER NamingRoleOwner
+        Returns the domain controller holding the Domain Naming Master role for the forest the domain belongs to.
     .PARAMETER Credential
         Specifies the user account credentials to use to perform this task. The default credentials are the credentials of the currently logged on user.
     .NOTES
@@ -381,6 +418,10 @@ function Get-DSDomainController {
         [Switch]$RidRole,
         [Parameter(ParameterSetName = 'InfrastructureRole', Mandatory = $True, Position = 0)]
         [Switch]$InfrastructureRole,
+        [Parameter(ParameterSetName = 'SchemaRoleOwner', Mandatory = $True, Position = 0)]
+        [Switch]$SchemaRoleOwner,
+        [Parameter(ParameterSetName = 'NamingRoleOwner', Mandatory = $True, Position = 0)]
+        [Switch]$NamingRoleOwner,
         [Parameter(ParameterSetName = 'Discover', Mandatory = $False, Position = 0)]
         [Switch]$Discover,
         [Parameter(ParameterSetName = 'Discover', Mandatory = $False, Position = 1)]
@@ -389,6 +430,8 @@ function Get-DSDomainController {
         [Parameter(ParameterSetName = 'PdcRole', Mandatory = $False, Position = 1)]
         [Parameter(ParameterSetName = 'RidRole', Mandatory = $False, Position = 1)]
         [Parameter(ParameterSetName = 'InfrastructureRole', Mandatory = $False, Position = 1)]
+        [Parameter(ParameterSetName = 'SchemaRoleOwner', Mandatory = $False, Position = 1)]
+        [Parameter(ParameterSetName = 'NamingRoleOwner', Mandatory = $False, Position = 1)]
         [String]$DomainName,
         [Parameter(ParameterSetName = 'Discover', Mandatory = $False, Position = 3)]
         [Switch]$ForceDiscover,
@@ -400,11 +443,15 @@ function Get-DSDomainController {
         [Switch]$Writable,
         [Parameter(ParameterSetName = 'Discover', Mandatory = $False, Position = 7)]
         [Switch]$FindAll,
-        [Parameter(ParameterSetName = 'Identity', Mandatory = $False, Position = 1)]
         [Parameter(ParameterSetName = 'Discover', Mandatory = $False, Position = 8)]
+        [Switch]$Forest,
+        [Parameter(ParameterSetName = 'Identity', Mandatory = $False, Position = 1)]
+        [Parameter(ParameterSetName = 'Discover', Mandatory = $False, Position = 9)]
         [Parameter(ParameterSetName = 'PdcRole', Mandatory = $False, Position = 2)]
         [Parameter(ParameterSetName = 'RidRole', Mandatory = $False, Position = 2)]
         [Parameter(ParameterSetName = 'InfrastructureRole', Mandatory = $False, Position = 2)]
+        [Parameter(ParameterSetName = 'SchemaRoleOwner', Mandatory = $False, Position = 2)]
+        [Parameter(ParameterSetName = 'NamingRoleOwner', Mandatory = $False, Position = 2)]
         [Management.Automation.PSCredential]$Credential
     )
     if (!$DomainName) {
@@ -447,6 +494,17 @@ function Get-DSDomainController {
                 Throw Initialize-ErrorRecord $_ $Null $MyInvocation.MyCommand
             }
             if ($FindAll) {
+                if ($Forest) {
+                    try {
+                        $DSForest = Get-DSForest $DomainName -Credential $Credential
+                    } catch {
+                        Throw Initialize-ErrorRecord $_ $Null $MyInvocation.MyCommand
+                    }
+                    foreach ($Domain in $DSForest.Domains) {
+                        $DomainControllers += $Domain.DomainControllers
+                    }
+                    return $DomainControllers
+                }
                 try {
                     if ($SiteName) {
                         return [DirectoryServices.ActiveDirectory.DomainController]::FindAll($Context, $SiteName)
@@ -499,6 +557,18 @@ function Get-DSDomainController {
             } catch {
                 Throw Initialize-ErrorRecord $_ $Null $MyInvocation.MyCommand
             }
+        } 'SchemaRoleOwner' {
+            try {
+                return (Get-DSForest -Name $DomainName -Credential $Credential).SchemaRoleOwner
+            } catch {
+                Throw Initialize-ErrorRecord $_ $Null $MyInvocation.MyCommand
+            }
+        } 'NamingRoleOwner' {
+            try {
+                return (Get-DSForest -Name $DomainName -Credential $Credential).NamingRoleOwner
+            } catch {
+                Throw Initialize-ErrorRecord $_ $Null $MyInvocation.MyCommand
+            }
         }
     }
 }
@@ -532,7 +602,7 @@ function Get-DSRootDSE {
     )
     if (!$Server) {
         try {
-            $Server = (Get-DSDomainController).Name
+            $Server = (Get-DSDomainController -Credential $Credential).Name
         } catch {
             Throw Initialize-ErrorRecord $_ $Null $MyInvocation.MyCommand
         }
@@ -580,7 +650,7 @@ function Get-DSRootDSE {
     }
 }
 
-function New-DSOBject {
+function New-DSObject {
     <#
     .SYNOPSIS
         Gets one or more Active Directory objects.
@@ -607,7 +677,7 @@ function New-DSOBject {
     .EXAMPLE
         New-DSObject -Name "Banking" -Path "dc=contoso,dc=com" -Type organizationalUnit -Description "Contains bankers!" -ProtectedFromAccidentalDeletion $True -Server dc1
     .EXAMPLE
-        New-DSOBject -Name "IP-FROM-CONTOSODC1" -Path "CN=NTDS Settings,CN=CONTOSODC2,CN=Servers,CN=Contoso-Site,CN=Sites,CN=Configuration,DC=contoso,DC=com" -Type "nTDSConnection -OtherAttributes $attr -Server Contosodc2
+        New-DSObject -Name "IP-FROM-CONTOSODC1" -Path "CN=NTDS Settings,CN=CONTOSODC2,CN=Servers,CN=Contoso-Site,CN=Sites,CN=Configuration,DC=contoso,DC=com" -Type "nTDSConnection -OtherAttributes $attr -Server Contosodc2
     .NOTES
         Version: 0.9 WIP
         Author: Marius Koch
@@ -644,9 +714,22 @@ function New-DSOBject {
         'organizationalunit' { $CreateVar2 = "OU=$($Name)" }
         default { $CreateVar2 = "CN=$($Name)" }
     }
-
+    if (!$Server) {
+        try {
+            $Server = (Get-DSDomainController -Credential $Credential).Name
+        } catch {
+            Throw Initialize-ErrorRecord $_ $Null $MyInvocation.MyCommand
+        }
+    }
+    if (!$Path) {
+        try {
+            $Path = (Get-DSDomain -Server $Server -Credential $Credential).GetDirectoryEntry().distinguishedName
+        } catch {
+            Throw Initialize-ErrorRecord $_ $Null $MyInvocation.MyCommand
+        }
+    }
 # Her kreeres det! GOTCHA!
-    $DestinationPath = Get-DSOBject -Identity $Path -Credential $Credential -Server $server
+    $DestinationPath = Get-DSObject -Identity $Path -Credential $Credential -Server $server
     try {
         $do = $DestinationPath.Create($Type,$CreateVar2)
     } catch {
@@ -769,6 +852,14 @@ function Get-DSObject {
     }
     switch ($PsCmdlet.ParameterSetName) {
         'Identity' {
+            if (!$Identity.Contains('DC=')) {
+                try {
+                    $RootPath = (Get-DSDomain -Server $Server -Credential $Credential).GetDirectoryEntry().distinguishedName
+                } catch {
+                    Throw Initialize-ErrorRecord $_ $Null $MyInvocation.MyCommand
+                }
+                $Identity = "$Identity,$RootPath"
+            }
             try {
                 return Get-DSDirectoryEntry -Path "LDAP://$Server/$Identity" -Credential $Credential
             } catch {
@@ -1018,11 +1109,11 @@ function Get-DSTrust {
     .PARAMETER Credential
         Specifies the user account credentials to use to perform this task. The default credentials are the credentials of the currently logged on user.
     .EXAMPLE
-        Add-DSAccessRule -DistinguishedName 'CN=Users,DC=contoso,DC=com' -Identity Guests
-        Gives the default Guests group read permission on the Users container. The permission will not propagate to descendant objects.
+        Get-DSTrust
+        Gets all trust for current domain.
     .EXAMPLE
-        Add-DSAccessRule -DistinguishedName 'DC=contoso,DC=com' -Identity SELF -Rights WriteProperty -InheritanceType Descendents -ObjectType ms-TPM-OwnerInformation -InheritedObjectType Computer
-        Gives all computers objects the Write permission on their own ms-TPM-OwnerInformation property.
+        Get-DSTrust -Context Forest -Direction Bidirectional -SourceName Contoso.com -Credential (Get-Credential)
+        Gets all bidirectional trust from the Contoso.com domain using the specified credentials.
     .NOTES
         Version: 1.0
         Author: Andreas Sørlie
