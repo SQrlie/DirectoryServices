@@ -115,15 +115,33 @@ function Get-DSDirectoryContext {
     .PARAMETER Credential
         The credentials to use for connecting to the specified context. If not specifed, current user's credential will be used. 
         Note that this function does not validate the credentials.
+    .EXAMPLE
+        Get-DSDirectoryContext -Type Forest -Name 'contoso.com'
+        Gets the forest directory context of forest name contoso.com.
+    .INPUTS
+        [System.DirectoryServices.ActiveDirectory.DirectoryContextType]$Type
+        [System.String]$Name
+        [System.Management.Automation.PSCredential]$Credential
+    .OUTPUTS
+        [System.DirectoryServices.ActiveDirectory.DirectoryContext]
+    .NOTES
+        Version: 1.1
+        Author: Andreas Sørlie
+        Changelog:
+        1.1: 25.12.2015 Andreas Sørlie
+        - Added examples and inputs/outputs
+        - Formatting
+        - Validation of $Name
     #>
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $True, Position = 0)]
-        [DirectoryServices.ActiveDirectory.DirectoryContextType]$Type,
+            [DirectoryServices.ActiveDirectory.DirectoryContextType]$Type,
         [Parameter(Mandatory = $True, Position = 1)]
-        [String]$Name,
+            [ValidateNotNullOrEmpty()]
+            [String]$Name,
         [Parameter(Mandatory = $False, Position = 2)]
-        [Management.Automation.PSCredential]$Credential
+            [Management.Automation.PSCredential]$Credential
     )
     if ($Credential) {
         if ($Credential.GetNetworkCredential().Domain.Length -eq 0) {
@@ -131,7 +149,8 @@ function Get-DSDirectoryContext {
         } else {
             $UserName = $Credential.UserName
         }
-        return New-Object DirectoryServices.ActiveDirectory.DirectoryContext($Type, $Name, $UserName, $Credential.GetNetworkCredential().Password)
+        return New-Object DirectoryServices.ActiveDirectory.DirectoryContext($Type, $Name, $UserName, 
+            $Credential.GetNetworkCredential().Password)
     } else {
         return New-Object DirectoryServices.ActiveDirectory.DirectoryContext($Type, $Name)
     }
@@ -146,39 +165,53 @@ function Get-DSDirectoryEntry {
     .PARAMETER Path
         The path of the DirectoryEntry
     .PARAMETER Credential
-        The credentials to use for connecting to the specified DirectoryEntry. If not specifed, current user's credential will be used. 
+        The credentials to use for connecting to the specified DirectoryEntry. 
+        If not specifed, current user's credential will be used. 
+    .EXAMPLE
+        Get-DSDirectoryEntry
+        Returns the DirectoryEntry for the default naming context.
+    .EXAMPLE
+        $Credential = Get-Credential
+        Get-DSDirectoryEntry -Path "LDAP://contoso.com/OU=Corp,DC=contoso,DC=com" -Credential $Credential
+        Returns the DirectoryEntry for the organizational unit "Corp".
+    .INPUTS
+        [System.String]$Path
+        [System.Management.Automation.PSCredential]$Credential
+    .OUTPUTS
+        [System.DirectoryServices.DirectoryEntry]$DirectoryEntry
+        [DirectoryServices.DirectoryServicesCOMException]$Exception
+            If the Directory Service is unable to retrieve the entry.
     .NOTES
-        Version: 1.0
+        Version: 1.1
         Author: Andreas Sørlie
+        Changelog:
+        1.1: 25.12.2015 Andreas Sørlie
+        - Simplified error handling
+        - Added examples and inputs/outputs
+        - Formatting
     #>
     [CmdletBinding()]
     Param(
-        [Parameter(Mandatory = $False, Position = 0)]
-        [String]$Path,
-        [Parameter(Mandatory = $False, Position = 1)]
-        [Management.Automation.PSCredential]$Credential
+        [Parameter(Mandatory = $False, Position = 0,ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True,
+            HelpMessage='The path of the DirectoryEntry')]
+            [String]$Path,
+        [Parameter(Mandatory = $False, Position = 1, ValueFromPipelineByPropertyName=$True,
+            HelpMessage='The credentials to use for connecting to the specified DirectoryEntry.')]
+            [Management.Automation.PSCredential]$Credential
     )
-    $ErrorActionPreference = 'Stop'
     if ($Credential) {
         if ($Credential.GetNetworkCredential().Domain.Length -eq 0) {
             $UserName = $Credential.GetNetworkCredential().UserName
         } else {
             $UserName = $Credential.UserName
         }
-        try {
-            $DirectoryEntry = New-Object DirectoryServices.DirectoryEntry($Path, $UserName, $Credential.GetNetworkCredential().Password)
-        } catch {
-            Throw Initialize-ErrorRecord $_ 'DirectoryServices.DirectoryEntry' $MyInvocation.MyCommand
-        }
+        $DirectoryEntry = New-Object DirectoryServices.DirectoryEntry($Path, $UserName, $Credential.GetNetworkCredential().Password)
     } else {
-        try {
-            $DirectoryEntry = New-Object DirectoryServices.DirectoryEntry($Path)
-        } catch {
-            Throw Initialize-ErrorRecord $_ 'DirectoryServices.DirectoryEntry' $MyInvocation.MyCommand
-        }
+        $DirectoryEntry = New-Object DirectoryServices.DirectoryEntry($Path)
     }
     if ($DirectoryEntry.NativeObject -eq $Null) {
-        Throw Initialize-ErrorRecord "Unable to retrieve DirectoryEntry: $Path" 'DirectoryServices.DirectoryEntry' $MyInvocation.MyCommand
+        Throw [DirectoryServices.DirectoryServicesCOMException] "Unable to retrieve DirectoryEntry: $Path"
     }
     return $DirectoryEntry
 }
