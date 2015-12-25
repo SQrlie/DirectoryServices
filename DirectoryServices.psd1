@@ -58,7 +58,7 @@ CLRVersion = '2.0'
 # NestedModules = @()
 
 # Functions to export from this module
-FunctionsToExport = 'Initialize-ErrorRecord'
+FunctionsToExport = '*'
 
 # Cmdlets to export from this module
 CmdletsToExport = '*'
