@@ -1,0 +1,58 @@
+﻿TOPIC
+	about_DirectoryServices
+SHORT DESCRIPTION
+    PowerShell Module for Active Directory Domain Services (AD DS) based on 
+    .NET Namespace System.DirectoryServices.
+LONG DESCRIPTION
+    The cmdlets for the DirectoryServices PowerShell Module are for the most
+    part built using the same cmdlet name-giving and parameter sets as the 
+    Microsoft ActiveDirectory PowerShell Module. The difference is that 
+    while the ActiveDirectory module is dependant on Active Directory Web
+    Services, the DirectoryServices module is built around the
+    System.DirectoryServices namespace in the .NET Framework, which uses
+    LDAP to communicate with Active Directory as well as other Directory
+    Services.
+	
+NOTES
+    Name:            DirectoryServices
+    Title:           Active Directory Directory Services PowerShell Module
+    Authors:         Andreas Sørlie
+                     Marius Koch
+    Date:            25.12.2015
+    Version:         1.1.4
+
+CHANGELOG
+    27.11.2014: 1.0 Andreas Sørlie
+    - Intial version with the following functions:
+      Get-DSDirectoryContext
+      Get-DSDirectoryEntry
+      Get-DSForest
+      Get-DSDomain
+    - For now, error handling is done through the function Initialize-ErrorRecord. 
+      This may change.
+    
+    11.03.2015: 1.1 
+    - Added functions:
+      Get-DSDomainController
+      Get-DSRootDSE
+      Get-DSObject
+      Add-DSAccessRule
+
+    12.03.2015: 1.1.1
+    - Added Get-DSTrust
+
+    17.05.2015: 1.1.2
+    - Added New-DSObject. Requires additional work, but supports organizationalUnit 
+      and nTDSConnection. No extensive testing has been made.
+    
+    09.06.2015: 1.1.3
+    - Added ParameterSet Server to Get-DSForest and Get-DSDomain
+    - Added switch Forest in Get-DSDomainController in order to be able to get all 
+      domain controllers in the forest.
+    - Added default path to New-DSObject.
+    - Auto-completion of DC (Domain Component) in Get-DSObject.
+    - Added examples to Get-DSTrust
+    25.12.2015: 1.1.4
+    - Code cleanup
+    - Added Module Manifest
+    - Added about_DirectoryServices

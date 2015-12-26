@@ -73,7 +73,7 @@ AliasesToExport = '*'
 # ModuleList = @()
 
 # List of all files packaged with this module
-FileList = 'DirectoryServices.psd1', 'DirectoryServices.psm1'
+FileList = 'DirectoryServices.psd1', 'DirectoryServices.psm1, DirectoryServices.Help.xml, about_DirectoryServices.help.txt'
 
 # Private data to pass to the module specified in RootModule/ModuleToProcess
 # PrivateData = ''
